@@ -5,4 +5,5 @@ __pycache__/
 instance/
 uploads/
 *.db
+*.apk
 cve_cache.json
