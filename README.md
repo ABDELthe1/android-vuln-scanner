@@ -9,10 +9,6 @@ VulnScanner is a web-based Android APK security analysis platform that automates
 
 ---
 
-## Screenshots
-
-> Add screenshots here
-
 ---
 
 ## Features

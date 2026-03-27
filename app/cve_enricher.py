@@ -98,6 +98,11 @@ def search_cve_by_keyword(keyword: str, max_results: int = 3) -> list[dict]:
                 cvss_severity = cvss_data.get("baseSeverity") or entries[0].get("baseSeverity")
                 break
 
+        # Skip rejected/withdrawn CVEs
+        raw_desc = next((d["value"] for d in descriptions if d.get("lang") == "en"), "")
+        if raw_desc.startswith("Rejected reason:") or "DO NOT USE THIS CANDIDATE NUMBER" in raw_desc:
+            continue
+
         results.append({
             "id": cve_id,
             "description": desc,

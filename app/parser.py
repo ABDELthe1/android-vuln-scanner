@@ -361,7 +361,7 @@ def parse_report(report_json: dict) -> dict:
         or report_json.get("hash")
         or ""
     )
-    file_size = str(report_json.get("file_name") or report_json.get("size") or "")
+    file_size = str(report_json.get("size") or "")
 
     # ------------------------------------------------------------------ #
     # Permissions
