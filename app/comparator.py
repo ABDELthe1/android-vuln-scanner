@@ -1,134 +1,111 @@
 """
-Scan Comparator
-Uses Pandas to diff two scan results and highlight regressions (new findings)
-and improvements (fixed findings) between APK versions.
+Scan Comparator — Phase 4
+Diffs two ScanResult database objects to surface what changed security-wise
+between two versions of the same (or different) APKs.
 
-Intended for Phase 3 — the /compare route will use this module.
+Findings are matched by title. The three output buckets are:
+  fixed   — in A but not in B  (vulnerability resolved)
+  new     — in B but not in A  (new vulnerability introduced)
+  common  — in both A and B    (still present / unchanged)
 """
 
 import logging
-from typing import Any
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
-def _findings_to_df(findings: list[dict]) -> pd.DataFrame:
-    """Convert a findings list into a DataFrame keyed on (title, category)."""
-    if not findings:
-        return pd.DataFrame(columns=["title", "severity", "description", "category"])
-    return pd.DataFrame(findings)
-
-
-def compare_scans(scan_a: dict, scan_b: dict) -> dict:
+def compare_scans(scan_a, scan_b) -> dict:
     """
-    Compare two parsed scan results and return a structured diff.
+    Compare two ScanResult objects and return a structured diff.
 
     Args:
-        scan_a: Output of parser.parse_report() for the *baseline* APK.
-        scan_b: Output of parser.parse_report() for the *new* APK.
+        scan_a: ScanResult baseline (the older / reference scan).
+        scan_b: ScanResult target   (the newer / candidate scan).
 
-    Returns:
-        A dict with:
-          - ``new_findings``     — findings present in B but not A (regressions)
-          - ``fixed_findings``   — findings present in A but not B (improvements)
-          - ``common_findings``  — findings present in both
-          - ``score_delta``      — security_score change (B - A), None if unavailable
-          - ``summary``          — human-readable summary string
+    Returns::
+
+        {
+          "app_a":        str,          # app name of scan A
+          "app_b":        str,          # app name of scan B
+          "version_a":    str,          # version string of scan A (may be "")
+          "version_b":    str,          # version string of scan B (may be "")
+          "score_a":      int | None,
+          "score_b":      int | None,
+          "score_delta":  int | None,   # score_b - score_a
+          "fixed":        list[dict],   # findings resolved in B
+          "new":          list[dict],   # findings introduced in B
+          "common":       list[dict],   # findings present in both
+          "summary": {
+              "fixed":    int,
+              "new":      int,
+              "common":   int,
+          }
+        }
     """
-    df_a = _findings_to_df(scan_a.get("findings", []))
-    df_b = _findings_to_df(scan_b.get("findings", []))
+    findings_a: list[dict] = scan_a.findings
+    findings_b: list[dict] = scan_b.findings
 
-    merge_keys = ["title", "category"]
+    meta_a: dict = scan_a.meta if hasattr(scan_a, "meta") else {}
+    meta_b: dict = scan_b.meta if hasattr(scan_b, "meta") else {}
 
-    if df_a.empty and df_b.empty:
-        return _empty_result()
+    score_a = scan_a.security_score
+    score_b = scan_b.security_score
+    score_delta = (score_b - score_a) if (score_a is not None and score_b is not None) else None
 
-    if df_a.empty:
-        return {
-            "new_findings": scan_b.get("findings", []),
-            "fixed_findings": [],
-            "common_findings": [],
-            "score_delta": _score_delta(scan_a, scan_b),
-            "summary": f"{len(scan_b['findings'])} new finding(s) introduced.",
-        }
-
-    if df_b.empty:
-        return {
-            "new_findings": [],
-            "fixed_findings": scan_a.get("findings", []),
-            "common_findings": [],
-            "score_delta": _score_delta(scan_a, scan_b),
-            "summary": f"{len(scan_a['findings'])} finding(s) fixed.",
-        }
-
-    # Outer merge to identify new / fixed / common
-    merged = pd.merge(
-        df_a[merge_keys].assign(_in_a=True),
-        df_b[merge_keys].assign(_in_b=True),
-        on=merge_keys,
-        how="outer",
-    )
-
-    new_mask = merged["_in_a"].isna() & merged["_in_b"].eq(True)
-    fixed_mask = merged["_in_b"].isna() & merged["_in_a"].eq(True)
-    common_mask = merged["_in_a"].eq(True) & merged["_in_b"].eq(True)
-
-    new_titles = set(
-        zip(merged.loc[new_mask, "title"], merged.loc[new_mask, "category"])
-    )
-    fixed_titles = set(
-        zip(merged.loc[fixed_mask, "title"], merged.loc[fixed_mask, "category"])
-    )
-    common_titles = set(
-        zip(merged.loc[common_mask, "title"], merged.loc[common_mask, "category"])
-    )
-
-    def _filter(findings, key_set):
-        return [
-            f for f in findings
-            if (f.get("title"), f.get("category")) in key_set
-        ]
-
-    new_findings = _filter(scan_b["findings"], new_titles)
-    fixed_findings = _filter(scan_a["findings"], fixed_titles)
-    common_findings = _filter(scan_b["findings"], common_titles)
-
-    delta = _score_delta(scan_a, scan_b)
-    delta_str = f"Score delta: {delta:+d}. " if delta is not None else ""
-
-    summary = (
-        f"{delta_str}"
-        f"{len(new_findings)} new finding(s), "
-        f"{len(fixed_findings)} fixed, "
-        f"{len(common_findings)} unchanged."
-    )
-
-    logger.info("Comparison complete: %s", summary)
-
-    return {
-        "new_findings": new_findings,
-        "fixed_findings": fixed_findings,
-        "common_findings": common_findings,
-        "score_delta": delta,
-        "summary": summary,
+    base = {
+        "app_a":       scan_a.app_name,
+        "app_b":       scan_b.app_name,
+        "version_a":   meta_a.get("version_name", ""),
+        "version_b":   meta_b.get("version_name", ""),
+        "score_a":     score_a,
+        "score_b":     score_b,
+        "score_delta": score_delta,
     }
 
+    # ------------------------------------------------------------------ #
+    # Edge cases — one or both scans have no findings
+    # ------------------------------------------------------------------ #
+    if not findings_a and not findings_b:
+        return {**base, "fixed": [], "new": [], "common": [],
+                "summary": {"fixed": 0, "new": 0, "common": 0}}
 
-def _score_delta(scan_a: dict, scan_b: dict) -> int | None:
-    score_a = scan_a.get("security_score")
-    score_b = scan_b.get("security_score")
-    if score_a is not None and score_b is not None:
-        return score_b - score_a
-    return None
+    if not findings_a:
+        return {**base, "fixed": [], "new": findings_b, "common": [],
+                "summary": {"fixed": 0, "new": len(findings_b), "common": 0}}
 
+    if not findings_b:
+        return {**base, "fixed": findings_a, "new": [], "common": [],
+                "summary": {"fixed": len(findings_a), "new": 0, "common": 0}}
 
-def _empty_result() -> dict:
+    # ------------------------------------------------------------------ #
+    # Pandas outer merge — match findings by title
+    # ------------------------------------------------------------------ #
+    df_a = pd.DataFrame(findings_a)[["title"]].assign(_in_a=True)
+    df_b = pd.DataFrame(findings_b)[["title"]].assign(_in_b=True)
+
+    merged = pd.merge(df_a, df_b, on="title", how="outer")
+
+    fixed_titles  = set(merged.loc[merged["_in_b"].isna(),              "title"])
+    new_titles    = set(merged.loc[merged["_in_a"].isna(),              "title"])
+    common_titles = set(merged.loc[merged["_in_a"].eq(True) & merged["_in_b"].eq(True), "title"])
+
+    fixed  = [f for f in findings_a if f.get("title") in fixed_titles]
+    new    = [f for f in findings_b if f.get("title") in new_titles]
+    common = [f for f in findings_b if f.get("title") in common_titles]
+
+    logger.info(
+        "Comparison %s→%s: %d fixed, %d new, %d common (delta %s)",
+        scan_a.app_name, scan_b.app_name,
+        len(fixed), len(new), len(common),
+        f"{score_delta:+d}" if score_delta is not None else "N/A",
+    )
+
     return {
-        "new_findings": [],
-        "fixed_findings": [],
-        "common_findings": [],
-        "score_delta": None,
-        "summary": "Both scans have no findings.",
+        **base,
+        "fixed":  fixed,
+        "new":    new,
+        "common": common,
+        "summary": {"fixed": len(fixed), "new": len(new), "common": len(common)},
     }

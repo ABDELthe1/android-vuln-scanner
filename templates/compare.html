@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% set active = "compare" %}
+
+{% block title %}Compare Scans — VulnScanner{% endblock %}
+
+{% block extra_styles %}
+/* ===================================================================
+   COMPARE SELECTOR PAGE
+=================================================================== */
+.compare-hero {
+  text-align: center;
+  padding: 48px 0 36px;
+}
+.compare-hero h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.025em;
+  margin-bottom: 10px;
+}
+.compare-hero p {
+  font-size: 15px;
+  color: var(--text-3);
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+.compare-form-card {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.compare-form-card .card-body { padding: 32px; }
+
+.selectors-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+@media (max-width: 600px) {
+  .selectors-row {
+    grid-template-columns: 1fr;
+  }
+  .selector-arrow { display: none; }
+}
+
+.selector-group { display: flex; flex-direction: column; gap: 6px; }
+.selector-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.selector-label span {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 18px;
+  margin-right: 6px;
+}
+.selector-label .lbl-a { background: var(--bg-3); color: var(--text-2); border: 1px solid var(--border); }
+.selector-label .lbl-b { background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent-border); }
+
+select.scan-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+select.scan-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.selector-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 2px;
+  color: var(--text-4);
+}
+
+.compare-actions {
+  display: flex;
+  justify-content: center;
+}
+.btn-compare {
+  padding: 12px 40px;
+  font-size: 15px;
+}
+
+.compare-hint {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-4);
+}
+
+.no-scans-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+.no-scans-state svg { margin: 0 auto 16px; opacity: 0.3; }
+.no-scans-state h3 { font-size: 16px; font-weight: 600; color: var(--text-1); margin-bottom: 6px; }
+.no-scans-state p  { font-size: 13.5px; color: var(--text-3); margin-bottom: 20px; }
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div class="compare-hero">
+    <h1>Compare Two Scans</h1>
+    <p>Select two scans to see which vulnerabilities were fixed, introduced, or remain unchanged between versions.</p>
+  </div>
+
+  <div class="compare-form-card">
+    <div class="card">
+      <div class="card-body">
+
+        {% if scans | length < 2 %}
+        <div class="no-scans-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <h3>Not enough scans</h3>
+          <p>You need at least two completed scans in your history to use comparison.</p>
+          <a href="/" class="btn btn-primary">Scan an APK</a>
+        </div>
+
+        {% else %}
+        <form method="POST" action="/compare">
+          <div class="selectors-row">
+            <!-- Baseline -->
+            <div class="selector-group">
+              <div class="selector-label">
+                <span class="lbl-a">A</span>Baseline Scan
+              </div>
+              <select name="scan_id_a" class="scan-select" required>
+                <option value="" disabled selected>Select a scan…</option>
+                {% for s in scans %}
+                <option value="{{ s.id }}">{{ s.app_name }}{% if s.meta.get('version_name') %} v{{ s.meta.version_name }}{% endif %} — Score: {{ s.security_score if s.security_score is not none else 'N/A' }} — {{ s.created_at.strftime('%b %d, %Y') }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Arrow -->
+            <div class="selector-arrow">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </div>
+
+            <!-- Target -->
+            <div class="selector-group">
+              <div class="selector-label">
+                <span class="lbl-b">B</span>Target Scan
+              </div>
+              <select name="scan_id_b" class="scan-select" required>
+                <option value="" disabled selected>Select a scan…</option>
+                {% for s in scans %}
+                <option value="{{ s.id }}">{{ s.app_name }}{% if s.meta.get('version_name') %} v{{ s.meta.version_name }}{% endif %} — Score: {{ s.security_score if s.security_score is not none else 'N/A' }} — {{ s.created_at.strftime('%b %d, %Y') }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="compare-actions">
+            <button type="submit" class="btn btn-primary btn-compare">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+              </svg>
+              Compare
+            </button>
+          </div>
+          <div class="compare-hint">Scan A is the baseline &mdash; Scan B is evaluated against it.</div>
+        </form>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

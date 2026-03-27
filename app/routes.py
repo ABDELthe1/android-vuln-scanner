@@ -7,6 +7,8 @@ Endpoints:
   POST /scan              — Accept an APK, run MobSF analysis, redirect to report.
   GET  /report/<scan_id>  — Full report page for a completed scan.
   GET  /history           — Scan history page.
+  GET  /compare           — Comparison selector page.
+  POST /compare           — Run diff between two scans and show result.
   GET  /scan/<id>         — JSON API: single scan result (kept for backwards compat).
 """
 
@@ -29,6 +31,7 @@ from app import db
 from app.models import ScanResult
 from app.mobsf_client import MobSFError, get_report, get_scorecard, start_scan, upload_apk
 from app.parser import parse_report
+from app.comparator import compare_scans
 
 logger = logging.getLogger(__name__)
 
@@ -200,6 +203,43 @@ def history():
         .all()
     )
     return render_template("history.html", scans=scans)
+
+
+@main_bp.route("/compare", methods=["GET"])
+def compare():
+    """
+    Render the comparison selector page.
+    Fetches all scans ordered by app name so the dropdowns are easy to navigate.
+    """
+    scans = (
+        ScanResult.query
+        .order_by(ScanResult.app_name, ScanResult.created_at.desc())
+        .all()
+    )
+    return render_template("compare.html", scans=scans)
+
+
+@main_bp.route("/compare", methods=["POST"])
+def compare_submit():
+    """
+    Receive two scan IDs from the selector form, run the diff, and render the result.
+    """
+    scan_id_a = request.form.get("scan_id_a", type=int)
+    scan_id_b = request.form.get("scan_id_b", type=int)
+
+    if not scan_id_a or not scan_id_b:
+        flash("Please select two scans to compare.", "error")
+        return redirect(url_for("main.compare"))
+
+    if scan_id_a == scan_id_b:
+        flash("Please select two different scans.", "error")
+        return redirect(url_for("main.compare"))
+
+    scan_a = ScanResult.query.get_or_404(scan_id_a)
+    scan_b = ScanResult.query.get_or_404(scan_id_b)
+
+    result = compare_scans(scan_a, scan_b)
+    return render_template("compare_result.html", result=result, scan_a=scan_a, scan_b=scan_b)
 
 
 @main_bp.route("/scan/<int:scan_id>", methods=["GET"])

@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% set active = "compare" %}
+
+{% block title %}{{ result.app_a }} vs {{ result.app_b }} — VulnScanner{% endblock %}
+
+{# ── Score delta helpers ───────────────────────────────────────── #}
+{% set delta = result.score_delta %}
+{% if delta is none %}
+  {% set delta_label = 'N/A' %}
+  {% set delta_class = 'neutral' %}
+{% elif delta > 0 %}
+  {% set delta_label = '+' ~ delta ~ ' Improved' %}
+  {% set delta_class = 'improved' %}
+{% elif delta < 0 %}
+  {% set delta_label = delta|string ~ ' Regressed' %}
+  {% set delta_class = 'regressed' %}
+{% else %}
+  {% set delta_label = 'No change' %}
+  {% set delta_class = 'neutral' %}
+{% endif %}
+
+{# ── Score badge helpers (inline macro via set) ────────────────── #}
+{% macro score_color(s) %}{% if s is none %}#9CA3AF{% elif s < 40 %}#DC2626{% elif s < 70 %}#D97706{% else %}#16A34A{% endif %}{% endmacro %}
+{% macro score_cls(s) %}{% if s is none %}badge-neutral{% elif s < 40 %}badge-critical{% elif s < 70 %}badge-high{% else %}badge-green{% endif %}{% endmacro %}
+
+{% block extra_styles %}
+/* ===================================================================
+   COMPARE RESULT PAGE
+=================================================================== */
+
+/* ── Top bar ──────────────────────────────────────────────────── */
+.result-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* ── App comparison header ────────────────────────────────────── */
+.scan-header-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+@media (max-width: 640px) {
+  .scan-header-grid { grid-template-columns: 1fr; }
+  .scan-header-sep  { display: none; }
+}
+.scan-header-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-xs);
+}
+.scan-header-card.card-a { border-top: 3px solid var(--border-2); }
+.scan-header-card.card-b { border-top: 3px solid var(--accent); }
+.scan-scan-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.scan-scan-label.lbl-a { color: var(--text-4); }
+.scan-scan-label.lbl-b { color: var(--accent); }
+.scan-app-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+.scan-app-pkg {
+  font-size: 12px;
+  color: var(--text-3);
+  font-family: 'Menlo', 'Consolas', monospace;
+  margin-bottom: 12px;
+  word-break: break-all;
+}
+.scan-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.scan-score-num {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* Arrow + delta */
+.scan-header-sep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.delta-arrow { color: var(--text-4); }
+.delta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.delta-pill.improved  { background: var(--success-bg);  color: var(--success);  border-color: var(--success-border); }
+.delta-pill.regressed { background: var(--critical-bg); color: var(--critical); border-color: var(--critical-border); }
+.delta-pill.neutral   { background: var(--bg-3);        color: var(--text-3);   border-color: var(--border); }
+
+/* ── Summary bar ──────────────────────────────────────────────── */
+.summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-xs);
+}
+.summary-cell {
+  flex: 1;
+  padding: 16px 20px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.summary-cell:last-child { border-right: none; }
+.summary-count {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.summary-count.fixed     { color: var(--success); }
+.summary-count.common    { color: var(--high); }
+.summary-count.new-risk  { color: var(--critical); }
+.summary-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+}
+
+/* ── Diff columns ─────────────────────────────────────────────── */
+.diff-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) { .diff-columns { grid-template-columns: 1fr; } }
+
+.diff-col {}
+.diff-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid;
+  border-bottom: none;
+}
+.diff-col-header.fixed-hdr   { background: #F0FDF4; color: var(--success);  border-color: #BBF7D0; }
+.diff-col-header.common-hdr  { background: var(--high-bg);     color: var(--high);     border-color: var(--high-border); }
+.diff-col-header.new-hdr     { background: var(--critical-bg); color: var(--critical); border-color: var(--critical-border); }
+
+.diff-col-body {
+  border: 1px solid;
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
+.diff-col-body.fixed-body  { border-color: #BBF7D0; }
+.diff-col-body.common-body { border-color: var(--high-border); }
+.diff-col-body.new-body    { border-color: var(--critical-border); }
+
+/* Finding cards inside diff columns */
+.diff-finding {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+}
+.diff-finding:last-child { border-bottom: none; }
+.diff-finding:hover { background: var(--bg-2); }
+.diff-finding.fixed-item  { border-left-color: var(--success); }
+.diff-finding.common-item { border-left-color: var(--high); }
+.diff-finding.new-item    { border-left-color: var(--critical); }
+
+.diff-finding-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.diff-finding-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.4;
+  flex: 1;
+}
+.diff-finding-cat {
+  font-size: 11px;
+  color: var(--text-4);
+  margin-top: 1px;
+}
+
+/* Empty column state */
+.diff-col-empty {
+  padding: 28px 16px;
+  text-align: center;
+  background: var(--bg);
+  font-size: 13px;
+  color: var(--text-4);
+}
+.diff-col-empty svg { margin: 0 auto 8px; opacity: 0.3; }
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- ── Top bar ────────────────────────────────────────────────── -->
+  <div class="result-topbar">
+    <a href="/compare" class="btn btn-secondary btn-sm">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Back to Compare
+    </a>
+    <span style="font-size:13px;color:var(--text-4);">
+      Scan #{{ scan_a.id }} vs Scan #{{ scan_b.id }}
+    </span>
+  </div>
+
+  <!-- ── App comparison header ──────────────────────────────────── -->
+  <div class="scan-header-grid">
+
+    <!-- Scan A -->
+    <div class="scan-header-card card-a">
+      <div class="scan-scan-label lbl-a">A — Baseline</div>
+      <div class="scan-app-name">{{ result.app_a }}</div>
+      <div class="scan-app-pkg">{{ scan_a.package_name }}</div>
+      <div class="scan-header-meta">
+        <span class="scan-score-num" style="color:{{ score_color(result.score_a) }};">
+          {{ result.score_a if result.score_a is not none else '—' }}
+        </span>
+        <span class="badge {{ score_cls(result.score_a) }}">Score</span>
+        {% if result.version_a %}<span class="badge badge-neutral">v{{ result.version_a }}</span>{% endif %}
+        <span style="font-size:12px;color:var(--text-4);">{{ scan_a.created_at.strftime('%b %d, %Y') }}</span>
+      </div>
+    </div>
+
+    <!-- Arrow + delta -->
+    <div class="scan-header-sep">
+      <svg class="delta-arrow" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
+      <span class="delta-pill {{ delta_class }}">
+        {% if delta_class == 'improved' %}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        {% elif delta_class == 'regressed' %}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        {% else %}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        {% endif %}
+        {{ delta_label }}
+      </span>
+    </div>
+
+    <!-- Scan B -->
+    <div class="scan-header-card card-b">
+      <div class="scan-scan-label lbl-b">B — Target</div>
+      <div class="scan-app-name">{{ result.app_b }}</div>
+      <div class="scan-app-pkg">{{ scan_b.package_name }}</div>
+      <div class="scan-header-meta">
+        <span class="scan-score-num" style="color:{{ score_color(result.score_b) }};">
+          {{ result.score_b if result.score_b is not none else '—' }}
+        </span>
+        <span class="badge {{ score_cls(result.score_b) }}">Score</span>
+        {% if result.version_b %}<span class="badge badge-neutral">v{{ result.version_b }}</span>{% endif %}
+        <span style="font-size:12px;color:var(--text-4);">{{ scan_b.created_at.strftime('%b %d, %Y') }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Summary bar ────────────────────────────────────────────── -->
+  <div class="summary-bar">
+    <div class="summary-cell">
+      <div class="summary-count fixed">{{ result.summary.fixed }}</div>
+      <div class="summary-label">Fixed</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-count common">{{ result.summary.common }}</div>
+      <div class="summary-label">Still Present</div>
+    </div>
+    <div class="summary-cell">
+      <div class="summary-count new-risk">{{ result.summary.new }}</div>
+      <div class="summary-label">New Risk</div>
+    </div>
+  </div>
+
+  <!-- ── Three diff columns ─────────────────────────────────────── -->
+  <div class="diff-columns">
+
+    <!-- Fixed -->
+    <div class="diff-col">
+      <div class="diff-col-header fixed-hdr">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Fixed ({{ result.summary.fixed }})
+      </div>
+      <div class="diff-col-body fixed-body">
+        {% if result.fixed %}
+          {% for f in result.fixed %}
+          <div class="diff-finding fixed-item">
+            <div class="diff-finding-top">
+              <span class="badge badge-{{ f.severity }}" style="flex-shrink:0;">{{ f.severity }}</span>
+              <span class="diff-finding-title">{{ f.title }}</span>
+            </div>
+            <div class="diff-finding-cat">{{ f.category }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="diff-col-empty">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <p>No findings were fixed.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Still present -->
+    <div class="diff-col">
+      <div class="diff-col-header common-hdr">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Still Present ({{ result.summary.common }})
+      </div>
+      <div class="diff-col-body common-body">
+        {% if result.common %}
+          {% for f in result.common %}
+          <div class="diff-finding common-item">
+            <div class="diff-finding-top">
+              <span class="badge badge-{{ f.severity }}" style="flex-shrink:0;">{{ f.severity }}</span>
+              <span class="diff-finding-title">{{ f.title }}</span>
+            </div>
+            <div class="diff-finding-cat">{{ f.category }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="diff-col-empty">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <p>No persisting findings.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- New -->
+    <div class="diff-col">
+      <div class="diff-col-header new-hdr">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        New Risk ({{ result.summary.new }})
+      </div>
+      <div class="diff-col-body new-body">
+        {% if result.new %}
+          {% for f in result.new %}
+          <div class="diff-finding new-item">
+            <div class="diff-finding-top">
+              <span class="badge badge-{{ f.severity }}" style="flex-shrink:0;">{{ f.severity }}</span>
+              <span class="diff-finding-title">{{ f.title }}</span>
+            </div>
+            <div class="diff-finding-cat">{{ f.category }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="diff-col-empty">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <p>No new risks introduced.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /.diff-columns -->
+
+</div><!-- /.page -->
+{% endblock %}
