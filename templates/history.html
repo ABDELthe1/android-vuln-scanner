@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% set active = "history" %}
+
+{% block title %}Scan History — VulnScanner{% endblock %}
+
+{% block extra_styles %}
+/* ===================================================================
+   HISTORY PAGE
+=================================================================== */
+.page-heading {
+  margin-bottom: 28px;
+}
+.page-heading h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.page-heading p {
+  font-size: 14px;
+  color: var(--text-3);
+}
+
+/* Table card */
+.table-card .card-body { padding: 0; overflow: hidden; border-radius: var(--radius-lg); }
+.scan-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.scan-table th {
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-4);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.scan-table td {
+  padding: 14px 16px;
+  font-size: 13.5px;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.scan-table tbody tr:last-child td { border-bottom: none; }
+.scan-table tbody tr:hover { background: var(--bg-2); }
+.scan-table .td-name {
+  font-weight: 600;
+  color: var(--text-1);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scan-table .td-pkg {
+  font-family: 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--text-3);
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scan-table .td-date { color: var(--text-3); font-size: 12.5px; white-space: nowrap; }
+.scan-table .td-count { text-align: center; font-weight: 600; }
+.scan-table .td-count.critical-count { color: var(--critical); }
+.scan-table .td-count.high-count     { color: var(--high); }
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+.score-badge.score-red    { background: var(--critical-bg); color: var(--critical); border-color: var(--critical-border); }
+.score-badge.score-yellow { background: var(--high-bg);     color: var(--high);     border-color: var(--high-border); }
+.score-badge.score-green  { background: var(--success-bg);  color: var(--success);  border-color: var(--success-border); }
+.score-badge.score-none   { background: var(--bg-3);        color: var(--text-4);   border-color: var(--border); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 72px 24px;
+}
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  background: var(--bg-3);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+}
+.empty-state-icon svg { color: var(--text-4); }
+.empty-state h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+.empty-state p {
+  font-size: 14px;
+  color: var(--text-3);
+  margin-bottom: 24px;
+}
+
+@media (max-width: 700px) {
+  .col-pkg, .col-total { display: none; }
+}
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div class="page-heading">
+    <h1>Scan History</h1>
+    <p>All previously completed APK scans, sorted by most recent.</p>
+  </div>
+
+  <div class="card table-card">
+    {% if scans %}
+    <div style="overflow-x:auto;">
+      <table class="scan-table">
+        <thead>
+          <tr>
+            <th>App Name</th>
+            <th class="col-pkg">Package</th>
+            <th>Score</th>
+            <th>Critical</th>
+            <th>High</th>
+            <th class="col-total">Total</th>
+            <th>Date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in scans %}
+          {# determine score badge class #}
+          {% if s.security_score is none %}
+            {% set sb = 'score-none' %}
+          {% elif s.security_score < 40 %}
+            {% set sb = 'score-red' %}
+          {% elif s.security_score < 70 %}
+            {% set sb = 'score-yellow' %}
+          {% else %}
+            {% set sb = 'score-green' %}
+          {% endif %}
+          <tr>
+            <td class="td-name" title="{{ s.app_name }}">{{ s.app_name }}</td>
+            <td class="td-pkg col-pkg" title="{{ s.package_name }}">{{ s.package_name }}</td>
+            <td>
+              <span class="score-badge {{ sb }}">
+                {% if s.security_score is not none %}{{ s.security_score }}{% else %}—{% endif %}
+              </span>
+            </td>
+            <td class="td-count critical-count">{{ s.critical_count }}</td>
+            <td class="td-count high-count">{{ s.high_count }}</td>
+            <td class="td-count col-total">{{ s.total_findings }}</td>
+            <td class="td-date">{{ s.created_at.strftime('%b %d, %Y') }}</td>
+            <td>
+              <a href="/report/{{ s.id }}" class="btn btn-secondary btn-sm">
+                View Report
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </div>
+      <h2>No scans yet</h2>
+      <p>Upload an APK file to run your first security scan.</p>
+      <a href="/" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Scan an APK
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

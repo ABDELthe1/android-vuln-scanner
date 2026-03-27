@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}VulnScanner — Android Security Analysis{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===================================================================
+       DESIGN TOKENS
+    =================================================================== */
+    :root {
+      --accent:          #2563EB;
+      --accent-hover:    #1D4ED8;
+      --accent-light:    #EFF6FF;
+      --accent-border:   #BFDBFE;
+
+      --critical:        #DC2626;
+      --critical-bg:     #FEF2F2;
+      --critical-border: #FECACA;
+
+      --high:            #D97706;
+      --high-bg:         #FFFBEB;
+      --high-border:     #FDE68A;
+
+      --success:         #16A34A;
+      --success-bg:      #F0FDF4;
+      --success-border:  #BBF7D0;
+
+      --text-1: #111827;
+      --text-2: #374151;
+      --text-3: #6B7280;
+      --text-4: #9CA3AF;
+
+      --bg:     #FFFFFF;
+      --bg-2:   #F9FAFB;
+      --bg-3:   #F3F4F6;
+
+      --border:   #E5E7EB;
+      --border-2: #D1D5DB;
+
+      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / .04);
+      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .08), 0 1px 2px -1px rgb(0 0 0 / .06);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / .08), 0 2px 4px -2px rgb(0 0 0 / .06);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / .08), 0 4px 6px -4px rgb(0 0 0 / .05);
+
+      --radius-sm: 5px;
+      --radius:    8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-full: 9999px;
+
+      --nav-h: 60px;
+    }
+
+    /* ===================================================================
+       RESET
+    =================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text-1);
+      background: var(--bg-2);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+    main { flex: 1; }
+    img, svg { display: block; max-width: 100%; }
+    button { font-family: inherit; cursor: pointer; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ul { list-style: none; }
+
+    /* ===================================================================
+       NAVBAR
+    =================================================================== */
+    .navbar {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      height: var(--nav-h);
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      box-shadow: var(--shadow-xs);
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-1);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .nav-logo:hover { text-decoration: none; }
+    .nav-logo-icon {
+      width: 30px;
+      height: 30px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .nav-logo-icon svg { color: white; }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .nav-link {
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-2);
+      text-decoration: none;
+      transition: background 0.12s, color 0.12s;
+    }
+    .nav-link:hover {
+      background: var(--bg-3);
+      color: var(--text-1);
+      text-decoration: none;
+    }
+    .nav-link.active {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ===================================================================
+       FLASH MESSAGES
+    =================================================================== */
+    .flash-wrap {
+      max-width: 1200px;
+      margin: 20px auto 0;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .flash {
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .flash-error {
+      background: var(--critical-bg);
+      color: var(--critical);
+      border-color: var(--critical-border);
+    }
+    .flash-success {
+      background: var(--success-bg);
+      color: var(--success);
+      border-color: var(--success-border);
+    }
+
+    /* ===================================================================
+       LAYOUT HELPERS
+    =================================================================== */
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+    }
+    .page-sm {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+    }
+
+    /* ===================================================================
+       CARD
+    =================================================================== */
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xs);
+    }
+    .card-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .card-header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+    }
+    .card-body { padding: 24px; }
+
+    /* ===================================================================
+       BUTTONS
+    =================================================================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: background 0.12s, box-shadow 0.12s, opacity 0.12s, color 0.12s;
+      text-decoration: none;
+      white-space: nowrap;
+      line-height: 1;
+      font-family: inherit;
+    }
+    .btn:hover { text-decoration: none; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-hover); color: #fff; }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--text-1);
+      border: 1px solid var(--border-2);
+      box-shadow: var(--shadow-xs);
+    }
+    .btn-secondary:hover { background: var(--bg-3); color: var(--text-1); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-2);
+      border: 1px solid transparent;
+    }
+    .btn-ghost:hover { background: var(--bg-3); color: var(--text-1); }
+
+    .btn-sm { padding: 6px 13px; font-size: 13px; }
+    .btn-lg { padding: 12px 26px; font-size: 15px; }
+
+    /* ===================================================================
+       BADGES
+    =================================================================== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 9px;
+      border-radius: var(--radius-full);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid transparent;
+      line-height: 1.6;
+    }
+    .badge-critical {
+      background: var(--critical-bg);
+      color: var(--critical);
+      border-color: var(--critical-border);
+    }
+    .badge-high {
+      background: var(--high-bg);
+      color: var(--high);
+      border-color: var(--high-border);
+    }
+    .badge-green {
+      background: var(--success-bg);
+      color: var(--success);
+      border-color: var(--success-border);
+    }
+    .badge-neutral {
+      background: var(--bg-3);
+      color: var(--text-2);
+      border-color: var(--border);
+    }
+    .badge-blue {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: var(--accent-border);
+    }
+
+    /* ===================================================================
+       FOOTER
+    =================================================================== */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      padding: 18px 24px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--text-4);
+      margin-top: auto;
+    }
+    .site-footer a { color: var(--text-3); }
+    .site-footer a:hover { color: var(--text-1); }
+
+    /* ===================================================================
+       PAGE-LEVEL EXTRAS (injected by child templates)
+    =================================================================== */
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+  <!-- ================================================================
+       NAVBAR
+  ================================================================= -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-logo">
+        <span class="nav-logo-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </span>
+        VulnScanner
+      </a>
+      <nav class="nav-links">
+        <a href="/"        class="nav-link {% if active == 'home'    %}active{% endif %}">Home</a>
+        <a href="/history" class="nav-link {% if active == 'history' %}active{% endif %}">History</a>
+      </nav>
+    </div>
+  </nav>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-wrap">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              {% if category == 'error' %}
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              {% else %}
+                <polyline points="20 6 9 17 4 12"/>
+              {% endif %}
+            </svg>
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    VulnScanner &mdash; Android Static Analysis Platform
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+{% set active = "home" %}
+
+{% block title %}VulnScanner — Upload & Scan{% endblock %}
+
+{% block extra_styles %}
+/* ===================================================================
+   DASHBOARD — UPLOAD PAGE
+=================================================================== */
+
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 52px 0 36px;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-full);
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.hero h1 {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin-bottom: 12px;
+}
+.hero p {
+  font-size: 15.5px;
+  color: var(--text-3);
+  max-width: 440px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+/* Upload card */
+.upload-card {
+  max-width: 600px;
+  margin: 0 auto 48px;
+}
+.upload-card .card-body { padding: 32px; }
+
+.dropzone {
+  border: 2px dashed var(--border-2);
+  border-radius: var(--radius-lg);
+  padding: 44px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.dropzone:hover,
+.dropzone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.dropzone input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.dz-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  transition: background 0.15s;
+}
+.dropzone:hover .dz-icon,
+.dropzone.drag-over .dz-icon { background: var(--accent-light); }
+.dz-icon svg { color: var(--text-3); transition: color 0.15s; }
+.dropzone:hover .dz-icon svg,
+.dropzone.drag-over .dz-icon svg { color: var(--accent); }
+
+.dz-primary-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+.dz-hint { font-size: 12.5px; color: var(--text-4); }
+.dz-hint strong { color: var(--accent); font-weight: 500; }
+
+/* File preview */
+.file-preview {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.file-preview.visible { display: flex; }
+.file-preview-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-light);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.file-preview-icon svg { color: var(--accent); }
+.file-meta { flex: 1; min-width: 0; }
+.file-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-size { font-size: 12px; color: var(--text-4); margin-top: 1px; }
+.file-remove {
+  background: none;
+  border: none;
+  color: var(--text-4);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+.file-remove:hover { color: var(--critical); background: var(--critical-bg); }
+
+.upload-actions { margin-top: 20px; }
+.btn-scan { width: 100%; justify-content: center; padding: 12px 24px; font-size: 15px; }
+
+/* Features */
+.features-label {
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-4);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 860px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 26px; }
+}
+.feature-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.feature-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-2);
+}
+.feature-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.feature-icon-blue  { background: var(--accent-light); }
+.feature-icon-blue svg  { color: var(--accent); }
+.feature-icon-red   { background: var(--critical-bg); }
+.feature-icon-red svg   { color: var(--critical); }
+.feature-icon-amber { background: var(--high-bg); }
+.feature-icon-amber svg { color: var(--high); }
+.feature-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 6px;
+}
+.feature-desc { font-size: 12.5px; color: var(--text-3); line-height: 1.55; }
+
+/* Loading overlay */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(249, 250, 251, 0.9);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.loading-overlay.active { display: flex; }
+.loading-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 40px 48px;
+  text-align: center;
+  max-width: 380px;
+  width: 90%;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  margin: 0 auto 20px;
+}
+.loading-title { font-size: 16px; font-weight: 700; color: var(--text-1); margin-bottom: 6px; }
+.loading-sub   { font-size: 13px; color: var(--text-3); margin-bottom: 28px; }
+.loading-steps { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.lstep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-4);
+  transition: color 0.3s;
+}
+.lstep.active { color: var(--text-1); font-weight: 500; }
+.lstep.done   { color: var(--success); }
+.step-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.3s, background 0.3s;
+  position: relative;
+}
+.lstep.active .step-dot { border-color: var(--accent); background: var(--accent); }
+.lstep.done   .step-dot { border-color: var(--success); background: var(--success); }
+.step-dot-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: white;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+.lstep.active .step-dot-inner { display: block; }
+.step-dot-check {
+  display: none;
+  color: white;
+}
+.lstep.done .step-dot-inner  { display: none; }
+.lstep.done .step-dot-check  { display: block; }
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      Static Analysis
+    </div>
+    <h1>Android App Security Scanner</h1>
+    <p>Upload an APK file for instant static analysis. Detect vulnerabilities, misconfigurations, and risky permissions.</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="upload-card">
+    <div class="card">
+      <div class="card-body">
+        <form id="scanForm" method="POST" action="/scan" enctype="multipart/form-data">
+          <div class="dropzone" id="dropzone">
+            <input type="file" name="file" id="fileInput" accept=".apk" required>
+            <div class="dz-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+            </div>
+            <div class="dz-primary-text">Drop your APK file here</div>
+            <div class="dz-hint">or <strong>browse to select</strong> &mdash; .apk only, max 100 MB</div>
+          </div>
+
+          <div class="file-preview" id="filePreview">
+            <div class="file-preview-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              </svg>
+            </div>
+            <div class="file-meta">
+              <div class="file-name" id="fileName">—</div>
+              <div class="file-size" id="fileSize">—</div>
+            </div>
+            <button type="button" class="file-remove" id="fileRemove" title="Remove file">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="upload-actions">
+            <button type="submit" class="btn btn-primary btn-scan" id="scanBtn" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              Scan APK
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature Cards -->
+  <div class="features-label">What we analyze</div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon feature-icon-blue">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div class="feature-title">Manifest Analysis</div>
+      <div class="feature-desc">Detects exported components, missing security flags, backup settings, and debug configurations in AndroidManifest.xml.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon feature-icon-red">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+        </svg>
+      </div>
+      <div class="feature-title">Code Vulnerabilities</div>
+      <div class="feature-desc">Static analysis of Java and Kotlin source for insecure API usage, hardcoded secrets, crypto weaknesses, and injection flaws.</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon feature-icon-amber">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <div class="feature-title">Permissions Audit</div>
+      <div class="feature-desc">Evaluates requested permissions against app functionality, flagging dangerous, over-privileged, or unnecessary permissions.</div>
+    </div>
+  </div>
+
+</div><!-- /.page -->
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-title">Analyzing APK</div>
+    <div class="loading-sub">Running static analysis via MobSF&hellip;</div>
+    <div class="loading-steps">
+      <div class="lstep active" id="lstep1">
+        <div class="step-dot">
+          <div class="step-dot-inner"></div>
+          <svg class="step-dot-check" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        Uploading APK file
+      </div>
+      <div class="lstep" id="lstep2">
+        <div class="step-dot">
+          <div class="step-dot-inner"></div>
+          <svg class="step-dot-check" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        Running SAST engine
+      </div>
+      <div class="lstep" id="lstep3">
+        <div class="step-dot">
+          <div class="step-dot-inner"></div>
+          <svg class="step-dot-check" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        Parsing findings
+      </div>
+      <div class="lstep" id="lstep4">
+        <div class="step-dot">
+          <div class="step-dot-inner"></div>
+          <svg class="step-dot-check" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        Generating report
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  const dropzone    = document.getElementById('dropzone');
+  const fileInput   = document.getElementById('fileInput');
+  const filePreview = document.getElementById('filePreview');
+  const fileName    = document.getElementById('fileName');
+  const fileSize    = document.getElementById('fileSize');
+  const fileRemove  = document.getElementById('fileRemove');
+  const scanBtn     = document.getElementById('scanBtn');
+  const scanForm    = document.getElementById('scanForm');
+  const overlay     = document.getElementById('loadingOverlay');
+
+  function fmtBytes(b) {
+    if (!b) return '0 B';
+    const k = 1024, s = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(b) / Math.log(k));
+    return (b / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
+  }
+
+  function showFile(file) {
+    fileName.textContent = file.name;
+    fileSize.textContent = fmtBytes(file.size);
+    filePreview.classList.add('visible');
+    dropzone.style.display = 'none';
+    scanBtn.disabled = false;
+  }
+
+  function clearFile() {
+    fileInput.value = '';
+    filePreview.classList.remove('visible');
+    dropzone.style.display = '';
+    scanBtn.disabled = true;
+  }
+
+  fileInput.addEventListener('change', function () {
+    if (this.files && this.files[0]) showFile(this.files[0]);
+  });
+  fileRemove.addEventListener('click', clearFile);
+
+  /* Drag-and-drop */
+  ['dragenter', 'dragover'].forEach(ev => {
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      dropzone.classList.add('drag-over');
+    });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag-over'); });
+  });
+  dropzone.addEventListener('drop', function (e) {
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.toLowerCase().endsWith('.apk')) {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+      } catch (_) { /* Safari fallback — file won't submit but preview shows */ }
+      showFile(file);
+    }
+  });
+
+  /* Loading steps animation on submit */
+  scanForm.addEventListener('submit', function () {
+    overlay.classList.add('active');
+    const ids = ['lstep1','lstep2','lstep3','lstep4'];
+    let i = 0;
+    const tick = setInterval(() => {
+      const cur = document.getElementById(ids[i]);
+      if (cur) { cur.classList.remove('active'); cur.classList.add('done'); }
+      i++;
+      if (i < ids.length) {
+        const nxt = document.getElementById(ids[i]);
+        if (nxt) nxt.classList.add('active');
+      } else {
+        clearInterval(tick);
+      }
+    }, 9500);
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Android APK Vulnerability Scanner — Docker Compose
+# Services: scanner (Flask), db (PostgreSQL), mobsf
+# ---------------------------------------------------------------------------
+
+services:
+
+  # ── Flask web app ─────────────────────────────────────────────────────────
+  scanner:
+    build: .
+    container_name: vuln_scanner
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_ENV: production
+      DATABASE_URL: postgresql://scanner:scanner@db:5432/vulnscanner
+      MOBSF_URL: http://mobsf:8000
+      MOBSF_API_KEY: ${MOBSF_API_KEY}
+      SECRET_KEY: ${SECRET_KEY:-change_me_in_production}
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      mobsf:
+        condition: service_started
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: vuln_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scanner
+      POSTGRES_PASSWORD: scanner
+      POSTGRES_DB: vulnscanner
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scanner -d vulnscanner"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── MobSF ─────────────────────────────────────────────────────────────────
+  mobsf:
+    image: opensecurity/mobile-security-framework-mobsf:latest
+    container_name: mobsf
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - mobsf_data:/home/mobsf/.MobSF
+
+volumes:
+  postgres_data:
+  mobsf_data:
