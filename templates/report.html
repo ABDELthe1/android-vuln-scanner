@@ -41,6 +41,7 @@
 {% set cert_issues = meta.get('certificate_analysis', []) %}
 {% set t_count    = meta.get('trackers_count', 0) %}
 {% set t_list     = meta.get('trackers_list', []) %}
+{% set cve_total  = scan.findings | selectattr('cve_matches', 'defined') | map(attribute='cve_matches') | map('length') | sum %}
 
 {# OWASP mapping flags — uses namespace() so loop can update them #}
 {% set ns = namespace(
@@ -601,6 +602,59 @@
 .owasp-card.affected  .owasp-status { color: var(--critical); }
 .owasp-card.unaffected .owasp-status { color: var(--success); }
 .owasp-why { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+
+/* ── CVE matches ────────────────────────────────────────────── */
+.stat-number.success { color: var(--success); }
+.cve-section {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.cve-section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 10px;
+}
+.cve-item {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.cve-item:last-child { margin-bottom: 0; }
+.cve-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.cve-id {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'Courier New', monospace;
+  text-decoration: none;
+}
+.cve-id:hover { text-decoration: underline; }
+.cve-cvss {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+}
+.cve-cvss-critical { background: var(--critical-bg); color: var(--critical); border-color: var(--critical-border); }
+.cve-cvss-high     { background: var(--high-bg);     color: var(--high);     border-color: var(--high-border); }
+.cve-cvss-medium   { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
+.cve-cvss-low      { background: var(--bg-3); color: var(--text-3); border-color: var(--border-2); }
+.cve-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
 {% endblock %}
 
 {% block content %}
@@ -741,6 +795,12 @@
             <div class="stat-label">Total Findings</div>
           </div>
         </div>
+        <div class="card stat-card">
+          <div class="card-body">
+            <div class="stat-number {% if cve_total > 0 %}critical{% else %}success{% endif %}">{{ cve_total }}</div>
+            <div class="stat-label">CVEs Found</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -783,6 +843,28 @@
               {% if f.cwe %}<div><div class="fmeta-label">CWE</div><div class="fmeta-value">{{ f.cwe }}</div></div>{% endif %}
               {% if f.owasp %}<div><div class="fmeta-label">OWASP Mobile</div><div class="fmeta-value">{{ f.owasp }}</div></div>{% endif %}
               {% if f.cvss %}<div><div class="fmeta-label">CVSS Score</div><div class="fmeta-value">{{ f.cvss }}</div></div>{% endif %}
+            </div>
+            {% endif %}
+            {% if f.cve_matches %}
+            <div class="cve-section">
+              <div class="cve-section-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                CVE Matches
+              </div>
+              {% for cve in f.cve_matches %}
+              <div class="cve-item">
+                <div class="cve-item-header">
+                  <a class="cve-id" href="{{ cve.url }}" target="_blank" rel="noopener">{{ cve.id }}</a>
+                  {% if cve.cvss_score is not none %}
+                  {% set cvss_class = 'cve-cvss-critical' if cve.cvss_score >= 9 else ('cve-cvss-high' if cve.cvss_score >= 7 else ('cve-cvss-medium' if cve.cvss_score >= 4 else 'cve-cvss-low')) %}
+                  <span class="cve-cvss {{ cvss_class }}">CVSS {{ cve.cvss_score }}</span>
+                  {% endif %}
+                </div>
+                <div class="cve-desc">{{ cve.description }}</div>
+              </div>
+              {% endfor %}
             </div>
             {% endif %}
           </div>

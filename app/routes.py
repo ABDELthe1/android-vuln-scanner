@@ -10,6 +10,7 @@ Endpoints:
   GET  /compare           — Comparison selector page.
   POST /compare           — Run diff between two scans and show result.
   GET  /scan/<id>         — JSON API: single scan result (kept for backwards compat).
+  GET  /api/cve/<keyword> — JSON API: NVD CVE lookup by keyword.
 """
 
 import os
@@ -32,6 +33,7 @@ from app.models import ScanResult
 from app.mobsf_client import MobSFError, get_report, get_scorecard, start_scan, upload_apk
 from app.parser import parse_report
 from app.comparator import compare_scans
+from app.cve_enricher import enrich_findings, search_cve_by_keyword
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,7 @@ def scan():
     # 4. Parse the report
     # ------------------------------------------------------------------ #
     parsed = parse_report(report_json)
+    parsed["findings"] = enrich_findings(parsed["findings"])
 
     # ------------------------------------------------------------------ #
     # 5. Persist to the database
@@ -250,3 +253,13 @@ def get_scan(scan_id: int):
     """
     scan = ScanResult.query.get_or_404(scan_id)
     return jsonify(scan.to_dict())
+
+
+@main_bp.route("/api/cve/<path:keyword>", methods=["GET"])
+def cve_lookup(keyword: str):
+    """
+    JSON API: look up CVEs for a given keyword via the NVD API v2.
+    Cached for 24 hours.
+    """
+    results = search_cve_by_keyword(keyword)
+    return jsonify({"keyword": keyword, "results": results})
